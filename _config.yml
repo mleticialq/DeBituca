@@ -1,0 +1,15 @@
+title: DeBituca
+email: zbelgoncalves@gmail.com
+description: >- # this means to ignore newlines until "baseurl:"
+  Um espaço feito para mergulhar sem pressa: textos, química, cálculos e escrita, a partir da minha vivência acadêmica na UFRPE.
+url: "debituca.github.io" # the base hostname & protocol for your site, e.g. http://example.comx
+github_username:  mleticialq
+lang: pt-BR
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM 
+plugins:
+  - jekyll-feed
