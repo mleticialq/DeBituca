@@ -4,138 +4,332 @@ title: Categorias
 permalink: /categorias/
 ---
 
-<div class="periodic-table-wrapper">
-  
-  <div class="intro-text">
-    <h2>Tabela de Categorias</h2>
-    <p>Selecione um elemento para filtrar os posts.</p>
-  </div>
+<div class="categories-wrapper">
 
-  <div class="chem-grid">
-    {% for category in site.categories %}
-      {% assign cat_name = category[0] %}
-      {% assign cat_slug = cat_name | downcase %} 
-      {% assign post_count = category[1].size %}
-      
-      <a href="{{ site.baseurl }}/category/{{ cat_slug }}" class="element-card">
-        
-        <span class="atomic-number">{{ post_count }}</span>
-        
-        <div class="symbol">{{ cat_name | slice: 0, 2 }}</div>
-        
-        <div class="element-name">{{ cat_name }}</div>
-        
-      </a>
-    {% endfor %}
-  </div>
+  <aside class="categories-list" id="catList">
+    <!-- categorias via JS -->
+  </aside>
+
+  <main class="categories-content">
+    <h2 id="catCurrentName" class="category-title">Selecione uma categoria</h2>
+
+    <ul class="category-posts" id="catPosts">
+      <!-- posts via JS -->
+    </ul>
+  </main>
 
 </div>
 
+<script>
+  window.__CATEGORIES__ = (function(){
+    const map = {};
+
+    {% for category in site.categories %}
+      {% assign cat_name = category[0] %}
+      {% assign cat_slug = cat_name | slugify %}
+      {% assign posts = category[1] %}
+
+      map["{{ cat_slug }}"] = {
+        name: {{ cat_name | jsonify }},
+        count: {{ posts.size }},
+        posts: [
+          {% for post in posts %}
+          {
+            title: {{ post.title | jsonify }},
+            url: {{ post.url | relative_url | jsonify }},
+            dateISO: {{ post.date | date: "%Y-%m-%d" | jsonify }},
+            dateBR: {{ post.date | date: "%d/%m/%Y" | jsonify }}
+          }{% unless forloop.last %},{% endunless %}
+          {% endfor %}
+        ]
+      };
+    {% endfor %}
+
+    return map;
+  })();
+
+  (function(){
+    const data = window.__CATEGORIES__;
+    const slugs = Object.keys(data);
+
+    const list = document.getElementById("catList");
+    const posts = document.getElementById("catPosts");
+    const title = document.getElementById("catCurrentName");
+
+    function renderCategories(active){
+      list.innerHTML = "";
+      slugs.sort((a,b)=>data[a].name.localeCompare(data[b].name,"pt-BR"));
+
+      slugs.forEach(slug=>{
+        const btn = document.createElement("button");
+        btn.className = "category-item" + (slug === active ? " active" : "");
+        btn.type = "button";
+        btn.innerHTML = `
+          <span class="cat-name">${data[slug].name}</span>
+          <small class="cat-count">${data[slug].count}</small>
+        `;
+        btn.onclick = ()=>selectCategory(slug);
+        list.appendChild(btn);
+      });
+    }
+
+    function renderPosts(slug){
+      const cat = data[slug];
+      title.textContent = cat.name;
+
+      const ordered = cat.posts.sort((a,b)=>b.dateISO.localeCompare(a.dateISO));
+
+      posts.innerHTML = ordered.map(p=>`
+        <li class="post-card">
+          <a class="post-title" href="${p.url}">${p.title}</a>
+          <span class="post-date">${p.dateBR}</span>
+        </li>
+      `).join("");
+
+      if(!ordered.length){
+        posts.innerHTML = "<li class='empty'>Sem posts nesta categoria.</li>";
+      }
+    }
+
+    function selectCategory(slug){
+      renderCategories(slug);
+      renderPosts(slug);
+    }
+
+    if(slugs.length){
+      selectCategory(slugs[0]);
+    }
+  })();
+</script>
+
 <style>
-  /* Wrapper para centralizar tudo */
-  .periodic-table-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 40px 20px;
-    max-width: 1200px;
-    margin: 0 auto;
+:root{
+  --purple: #8B63D4;
+  --green: #16AC92;
+  --gray: #747474;
+  --light-gray: #a0a0a0;
+  --white: #ffffff;
+
+  /* “clima” da foto */
+  --lav-0: #fbfaff;
+  --lav-1: #f4f0ff;
+  --stroke: rgba(20,19,26,.08);
+  --stroke-strong: rgba(20,19,26,.12);
+
+  --shadow-soft: 0 10px 26px rgba(20,19,26,.08);
+  --shadow: 0 22px 60px rgba(20,19,26,.12);
+}
+
+/* ===== Container Principal (fundo igual vibe da foto) ===== */
+.categories-wrapper {
+  max-width: 1100px;
+  width: 95%;
+  margin: 60px auto;
+
+  border-radius: 30px;
+  padding: 44px;
+
+  /* Fundo lavanda suave + brilhos */
+  background:
+    radial-gradient(900px 420px at 12% 10%, rgba(139,99,212,.18), transparent 60%),
+    radial-gradient(700px 420px at 92% 20%, rgba(22,172,146,.10), transparent 62%),
+    linear-gradient(180deg, var(--lav-1), var(--lav-0));
+
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 0;
+  min-height: 70vh;
+  align-items: start;
+
+  position: relative;
+  overflow: hidden;
+}
+
+/* brilho interno bem leve */
+.categories-wrapper::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(600px 220px at 30% 0%, rgba(255,255,255,.75), transparent 65%),
+    radial-gradient(600px 260px at 80% 100%, rgba(255,255,255,.55), transparent 70%);
+  pointer-events:none;
+  opacity:.55;
+}
+
+/* ===== Pilar de Categorias (esquerda) ===== */
+.categories-list {
+  position: relative;
+  z-index: 1;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  padding-right: 36px;
+  border-right: 2px dashed rgba(20,19,26,.10);
+
+  /* vira “pilar” navegável */
+  max-height: calc(70vh - 20px);
+  overflow: auto;
+  padding-top: 6px;
+}
+
+/* barra de rolagem discreta */
+.categories-list::-webkit-scrollbar{ width: 10px; }
+.categories-list::-webkit-scrollbar-thumb{
+  background: rgba(139,99,212,.18);
+  border-radius: 999px;
+  border: 3px solid rgba(255,255,255,.6);
+}
+.categories-list::-webkit-scrollbar-track{ background: transparent; }
+
+.category-item {
+  background: rgba(255,255,255,.86);
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  padding: 14px 16px;
+
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+
+  color: rgba(20,19,26,.72);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+
+  box-shadow: 0 10px 24px rgba(20,19,26,.06);
+  backdrop-filter: blur(6px);
+}
+
+.category-item .cat-name{
+  font-size: 14.5px;
+  letter-spacing: .2px;
+  text-align: left;
+}
+
+.category-item .cat-count{
+  font-size: 12px;
+  opacity: .75;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(20,19,26,.08);
+  background: rgba(255,255,255,.65);
+}
+
+.category-item:hover {
+  transform: translateX(6px);
+  border-color: rgba(139,99,212,.35);
+  box-shadow: 0 18px 40px rgba(20,19,26,.10);
+}
+
+.category-item.active {
+  background: rgba(139,99,212,.92);
+  border-color: rgba(139,99,212,.50);
+  color: var(--white);
+}
+
+.category-item.active .cat-count{
+  background: rgba(255,255,255,.18);
+  border-color: rgba(255,255,255,.28);
+  color: rgba(255,255,255,.95);
+}
+
+/* ===== Pilar de Conteúdo (direita) ===== */
+.categories-content {
+  position: relative;
+  z-index: 1;
+
+  padding-left: 44px;
+  min-width: 0;
+}
+
+.category-title {
+  font-size: 40px;
+  color: var(--purple);
+  margin: 6px 0 34px;
+  font-family: serif;
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+
+/* ===== Lista de Posts ===== */
+.category-posts {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.post-card {
+  padding: 18px 18px;
+  border-radius: 18px;
+
+  background: rgba(255,255,255,.78);
+  border: 1px solid rgba(20,19,26,.08);
+  box-shadow: 0 14px 34px rgba(20,19,26,.08);
+  backdrop-filter: blur(6px);
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.post-title {
+  font-size: 18px;
+  font-weight: 650;
+  color: rgba(20,19,26,.88);
+  text-decoration: none;
+  line-height: 1.25;
+  transition: color .2s ease;
+}
+
+.post-title:hover {
+  color: var(--purple);
+}
+
+.post-date {
+  font-size: 12px;
+  color: rgba(20,19,26,.45);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.empty{
+  padding: 14px 0;
+  color: rgba(20,19,26,.55);
+}
+
+/* ===== Responsividade ===== */
+@media(max-width: 900px){
+  .categories-wrapper {
+    grid-template-columns: 1fr;
+    padding: 26px 18px;
   }
 
-  .intro-text {
-    text-align: center;
-    margin-bottom: 50px;
+  .categories-list {
+    border-right: none;
+    border-bottom: 2px dashed rgba(20,19,26,.10);
+    padding-right: 0;
+    padding-bottom: 18px;
+    margin-bottom: 18px;
+    max-height: 260px;
   }
 
-  .intro-text h2 {
-    font-size: 2.5em;
-    background: var(--grad-chem);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 10px;
+  .categories-content {
+    padding-left: 0;
   }
 
-  /* Grid Responsivo */
-  .chem-grid {
-    display: grid;
-    /* Cards com largura mínima de 150px, preenchendo o espaço */
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 25px;
-    width: 100%;
-    justify-content: center;
+  .category-title{
+    font-size: 32px;
+    margin-bottom: 22px;
   }
-
-  /* O Card "Elemento Químico" */
-  .element-card {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    aspect-ratio: 1 / 1; /* Garante que seja quadrado perfeito */
-    
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(10px);
-    border: 2px solid rgba(255, 255, 255, 0.8);
-    border-radius: 8px; /* Bordas levemente arredondadas mas ainda quadradas */
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    
-    text-decoration: none;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    cursor: pointer;
-    overflow: hidden;
-  }
-
-  /* Efeito Hover */
-  .element-card:hover {
-    transform: translateY(-8px) scale(1.05);
-    border-color: var(--chem-orange);
-    background: #fff;
-    box-shadow: 0 15px 30px rgba(255, 107, 53, 0.2);
-  }
-  
-  /* Quando passa o mouse, o texto fica rosa */
-  .element-card:hover .symbol,
-  .element-card:hover .element-name {
-    color: var(--chem-pink);
-  }
-
-  /* Detalhes do Card */
-  .atomic-number {
-    position: absolute;
-    top: 10px;
-    left: 12px;
-    font-size: 0.9em;
-    color: var(--text-medium);
-    font-family: monospace;
-  }
-
-  .symbol {
-    font-family: var(--header-font);
-    font-size: 3.5em;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--text-dark);
-    margin-top: 10px;
-    transition: color 0.3s;
-  }
-
-  .element-name {
-    font-size: 1em;
-    font-weight: 500;
-    color: var(--text-medium);
-    margin-top: 5px;
-    text-transform: capitalize;
-    transition: color 0.3s;
-  }
-
-  /* Ajuste Mobile */
-  @media (max-width: 600px) {
-    .chem-grid {
-      grid-template-columns: repeat(2, 1fr); /* 2 colunas no celular */
-    }
-    .symbol {
-      font-size: 2.5em;
-    }
-  }
+}
 </style>
